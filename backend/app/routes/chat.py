@@ -41,8 +41,8 @@ def chat(req: ChatRequest, x_simulate_failure: str | None = Header(default=None)
         except LLMError as e:
             logger.warning("chat failed: kind=%s attempts=%s", e.kind,
                            [(a.key_id, a.error_type, a.status_code) for a in e.attempts])
-            if e.kind == "fatal":
-                raise HTTPException(status_code=502, detail="upstream provider error") from None
+            # Every failure (exhausted, fatal 400/404, no keys) maps to the same 503; the
+            # kind is only logged. Nothing is saved for a failed exchange.
             raise HTTPException(status_code=503, detail="all providers unavailable") from None
         # Report the configured LiteLLM model name (with provider prefix, e.g.
         # "gemini/gemini-3.5-flash-lite"); response.model drops the prefix.

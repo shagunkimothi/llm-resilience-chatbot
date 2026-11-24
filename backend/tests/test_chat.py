@@ -189,7 +189,14 @@ def test_real_error_fallback_and_exhaustion(client, fake_llm, env):
 def test_non_retryable_error_does_not_fall_back(client, fake_llm, env):
     fake_llm.fail_for[FAKE_KEYS[0]] = err(litellm.exceptions.BadRequestError)
     r = chat(client, "s1", "x")
-    assert r.status_code == 502 and "detail" in r.json()
+    assert r.status_code == 503 and r.json() == {"detail": "all providers unavailable"}
+    assert len(fake_llm.calls) == 1 and db_rows(env) == 0
+
+
+def test_not_found_error_is_503_and_nothing_saved(client, fake_llm, env):
+    fake_llm.fail_for[FAKE_KEYS[0]] = err(litellm.exceptions.NotFoundError)
+    r = chat(client, "s1", "x")
+    assert r.status_code == 503 and r.json() == {"detail": "all providers unavailable"}
     assert len(fake_llm.calls) == 1 and db_rows(env) == 0
 
 

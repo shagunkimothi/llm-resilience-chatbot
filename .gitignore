@@ -1,2 +1,20 @@
+# Secrets: only the example files are committed
 .env
+.env.*
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
 .pytest_tmp/
+
+# Runtime data (SQLite DB, LLM cache)
+backend/data/
+
+# Node / build output
+node_modules/
+dist/
+*.log
