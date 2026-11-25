@@ -1,7 +1,9 @@
-# Resilient Chat: LLM Chatbot with Key Failover and Response Caching
+# Resilix: Resilient LLM Chat with Key Failover and Response Caching
 
-A chat app whose backend tries an ordered pool of LLM API keys, falling over to the next key on rate limits, outages and timeouts, and replays identical prompts from a response cache.
-Every reply reports where it came from (`LIVE_INFERENCE` / `LLM_CACHE`), which key answered, latency and token usage; conversations persist in SQLite.
+**Reliable AI. Intelligent Recovery.**
+
+Built for the *LLM Chatbot with Key Failover and Response Caching* assignment: a FastAPI backend tries an ordered pool of Gemini API keys, failing over on rate limits, outages and timeouts, and replays identical prompts from a response cache.
+Every reply reports where it came from (`LIVE_INFERENCE` / `LLM_CACHE`), which key answered, latency and token usage; conversations persist in SQLite, and the React dashboard shows how each request recovered.
 
 **Stack:** React + Vite (frontend) · FastAPI (backend) · LiteLLM (Gemini) · SQLite + SQLAlchemy · Docker / docker compose (nginx serves the frontend)
 
@@ -74,7 +76,7 @@ make test PY=backend/venv/bin/python       # macOS / Linux
 
 `make test` installs `backend/requirements-dev.txt`, then runs:
 - backend **pytest: 39 tests**
-- frontend **Vitest + Testing Library: 22 tests**
+- frontend **Vitest + Testing Library: 46 tests**
 
 Both suites use mocks, so they need no API key or network.
 
@@ -97,6 +99,40 @@ Every variable in `.env.example`, plus the frontend's `VITE_API_URL`:
 | `VITE_API_URL` | Frontend → backend base URL (build-time; trailing `/` stripped). Set in `frontend/.env`, the compose build arg or Netlify. | `http://localhost:8000` |
 
 ## 3. Design decisions: key fallback, caching, SQLite session storage
+
+### Architecture
+
+```mermaid
+flowchart LR
+    U[Browser<br/>Resilix React UI<br/>Netlify] -->|POST /chat<br/>GET /sessions/:id/messages<br/>GET /health| API[FastAPI backend<br/>Railway]
+    API --> V{Validate<br/>422 on bad input}
+    V --> H[(SQLite<br/>session history<br/>/data/app.db)]
+    H --> C{LiteLLM cache<br/>model + full messages}
+    C -->|hit| R[Reply<br/>LLM_CACHE<br/>key_id null]
+    C -->|miss| K1[key_1]
+    K1 -->|429 / 5xx / timeout| K2[key_2]
+    K1 -->|ok| L[Gemini<br/>gemini-3.5-flash-lite]
+    K2 -->|ok| L
+    K2 -->|all failed| E[503<br/>all providers unavailable]
+    L --> S[Save user + assistant<br/>in one transaction]
+    S --> R2[Reply<br/>LIVE_INFERENCE<br/>key_id + fallback_attempts]
+```
+
+- The browser talks to exactly three endpoints: `POST /chat`, `GET /sessions/{id}/messages` and `GET /health`.
+- `/chat` validates the request, loads the session history from SQLite and builds the full message list (system prompt + history + new message).
+- That list (with the model name) is the cache key. A hit returns immediately as `LLM_CACHE`; a miss walks the key pool in order, falling over on rate limits, 5xx, timeouts, auth errors and empty replies (the diagram shows two keys; the pool has `key_1 … key_n`).
+- If every key fails, the API returns 503 and saves nothing. On success, the user and assistant rows are written in one transaction and the reply carries `key_id` and `fallback_attempts`.
+- Cache hits are saved to history the same way, so a cached conversation can be continued and reloaded.
+
+**Deployment**
+
+```mermaid
+flowchart LR
+    GH[GitHub main] -->|auto deploy| N[Netlify<br/>frontend build<br/>VITE_API_URL]
+    GH -->|auto deploy| RW[Railway<br/>backend /backend<br/>volume at /data]
+    N -->|HTTPS + CORS| RW
+    D[Local: make up] --> DC[docker compose<br/>llm-backend :8000<br/>llm-frontend :3000<br/>named volume /data]
+```
 
 ### Request flow
 
@@ -269,11 +305,11 @@ curl -s -i $BASE/sessions/does-not-exist/messages
 - A cache hit returns the usage stored with the original reply.
 - The UI shows both under **every** assistant reply, alongside source, model, latency, key and fallbacks.
 
-**In the UI.**
-- **Simulating failover:** pick an option under *Settings → Developer: simulate failure* in the sidebar: None, `key_1=429`, `key_1=500`, `key_1=429,key_2=500` or `*=429`. A "simulating" badge appears while one is active.
-- **Demo cards:** the empty chat screen has two cards.
-  - **Test failover** selects `key_1=429` and fills in a sample question, so `key_2` answers.
-  - **See the cache** fills in the same first message as the live-reply card. Send it in a **New chat** and it comes back as `LLM_CACHE`, with green styling.
+**In the UI** (http://localhost:3000 or the Netlify URL):
+- **Playground** (the default view): every reply shows metadata pills (source, model, latency, input/output tokens, key, fallbacks). Replies that needed a fallback get a failover line such as `key_1 failed → key_2 answered · 1 fallback · 1212 ms`; cached replies show `Served from cache · 3 ms`. The failure simulation is under *Request settings* (None, `key_1=429`, `key_1=500`, `key_1=429,key_2=500`, `*=429`).
+- **Testing lab → Run all**: runs Normal, Cache hit, key_1→429, key_1→500 and All keys fail against the real backend, each with expected vs actual and a PASS/FAIL badge.
+- **Request traces**: every `/chat` attempt with a per-request step timeline (request sent → cache hit/miss → key failures → answer or 503) and the raw request/response JSON.
+- **Overview / Cache analytics / Monitoring**: live metrics labelled "This session", computed from the responses received since the page loaded (request counts, success rate, latency, cache hit rate, fallbacks, tokens, per-key health).
 
 **Automated live check:**
 ```bash
@@ -299,16 +335,24 @@ It needs `httpx` (from `requirements-dev.txt`) and makes a few real LLM calls.
 
 | Feature | Why |
 |---|---|
-| Failure-simulation select (Settings) plus the **Test failover** and **See the cache** demo cards | Shows failover and cache hits live, without real outages or spending quota. |
-| `key_id` and `fallback_attempts` shown on every reply | Makes visible which key answered and how many failed first. |
-| In-page chat history sidebar; switching chats reloads them via `GET /sessions/{id}/messages` | Proves history and metadata come back from SQLite, not from browser state. |
-| Distinct `LLM_CACHE` styling (green) vs `LIVE_INFERENCE` | Cache hits are recognizable at a glance. |
-| Per-session system prompt stored in a `sessions` table | Later turns reuse the prompt without resending it. |
-| React error boundary plus readable error bubbles | The UI never goes blank on a crash or a failed request. |
+| **Resilix dashboard UI**: Playground (default) plus Overview, Monitoring, Request traces, Cache analytics, History, Testing lab and Settings | One place to chat, demonstrate failover and caching, and inspect what happened. |
+| Metrics computed client-side from real `/chat` responses in the current page visit | No new endpoints, so the API contract stays exactly 3 endpoints; no sample or invented numbers, with empty states until data exists. |
+| Failover line on replies and a step timeline per request (Request traces) | Shows which keys failed, why (e.g. simulated 429), which key answered, or that all keys failed with a 503. |
+| Testing lab with expected vs actual and PASS/FAIL (Normal, Cache hit, key_1→429, key_1→500, All keys fail, Run all) | Repeatable end-to-end checks of the resilience behavior from the browser. |
+| Per-key health table (Monitoring) | Answers served, failures observed and status per key; simulated failures are counted but never mark a key as failing. |
+| Prompt lab (Settings): built-in system prompts plus saved prompts in `localStorage` | Quick switching of system prompts; "Use" fills the Playground's system prompt. |
+| Cost estimator (prices per 1M tokens, default 0) | Shows an estimated cost on Overview from live-inference tokens; cached replies cost nothing. |
+| Export chat as JSON or TXT | Keeps a copy of a conversation with its metadata. |
+| Health status pill (System operational / Degraded / Unreachable), re-checked every 60 s and on demand | Backend readiness from `GET /health` is always visible. |
 | Empty replies treated as a failed attempt | A blank answer falls over to the next key instead of being shown or cached. |
 | Per-attempt timeout with `num_retries=0` | Bounded worst-case latency; a slow key fails over quickly. |
 | `backend/scripts/verify_api.py` (28 live contract checks) | One command verifies a deployment end to end. |
-| Frontend tests (22, Vitest + Testing Library) alongside backend pytest (39) | The UI contract (meta values, errors, simulation header) is regression-tested. |
+| Tests: backend pytest (39), frontend Vitest + Testing Library (46) | The API contract and the UI (meta values, errors, simulation header, metrics, traces, lab) are regression-tested without network or keys. |
 | Healthchecks on both containers, a non-root backend container, `depends_on: service_healthy` | A safer runtime; the frontend starts only once the API is ready. |
 | Exact-pinned dependencies (pip `==`, exact npm versions, `npm ci`) | Reproducible builds. |
-| Helper scripts `check_keys.py`, `list_models.py`, `verify_litellm.py` | Check each key (reported as `key_N`) and the model setup before running the app. |
+
+**Future work**
+- A circuit breaker that skips a key for a while after repeated failures.
+- Load balancing across keys instead of always starting at `key_1`.
+- Side-by-side model comparison.
+- Server-side analytics endpoints (left out deliberately to keep the 3-endpoint contract; today's metrics cover only the current page visit).

@@ -288,8 +288,8 @@ describe('App', () => {
     const user = userEvent.setup()
     render(<App />)
     const brand = screen.getByTestId('brand')
-    expect(brand).toHaveTextContent('Resilient Chat')
-    expect(brand).toHaveTextContent('Key failover · response caching')
+    expect(brand).toHaveTextContent('Resilix')
+    expect(brand).toHaveTextContent('Reliable AI. Intelligent Recovery.')
 
     const [item] = screen.getAllByTestId('session-item')
     expect(item.textContent).toBe('Untitled chat')

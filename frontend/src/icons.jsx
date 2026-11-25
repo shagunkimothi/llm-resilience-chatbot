@@ -41,12 +41,18 @@ export const ChatIcon = () => (
     <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
   </svg>
 )
-export const BrandIcon = () => (
-  <svg width={20} height={20} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-    <path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-4.5 3.6A.6.6 0 0 1 6.5 20v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#fff" />
-    <circle cx="8.5" cy="10.5" r="1.3" fill="#7c5cfc" />
-    <circle cx="12" cy="10.5" r="1.3" fill="#7c5cfc" />
-    <circle cx="15.5" cy="10.5" r="1.3" fill="#7c5cfc" />
+export const BrandIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="rx-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#4F8CFF" />
+        <stop offset="1" stopColor="#8B5CF6" />
+      </linearGradient>
+    </defs>
+    <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#rx-grad)" />
+    <path d="M22.5 11.5A8 8 0 1 0 24 16" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+    <path d="M19 10.6l3.9.7-.7 3.9" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="16" cy="16" r="2.6" fill="#fff" />
   </svg>
 )
 export const SparkIcon = () => (
@@ -63,5 +69,55 @@ export const DatabaseIcon = () => (
 export const ShuffleIcon = () => (
   <svg {...base}>
     <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+  </svg>
+)
+export const PlayIcon = () => (
+  <svg {...base}>
+    <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12zM10 9.5v5l4-2.5z" />
+  </svg>
+)
+export const GridIcon = () => (
+  <svg {...base}>
+    <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
+  </svg>
+)
+export const PulseIcon = () => (
+  <svg {...base}>
+    <path d="M3 12h4l3-8 4 16 3-8h4" />
+  </svg>
+)
+export const TraceIcon = () => (
+  <svg {...base}>
+    <path d="M4 6h16M4 12h10M4 18h6M18 14l3 3-3 3" />
+  </svg>
+)
+export const ClockIcon = () => (
+  <svg {...base}>
+    <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2" />
+  </svg>
+)
+export const FlaskIcon = () => (
+  <svg {...base}>
+    <path d="M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3M7 15h10" />
+  </svg>
+)
+export const GearIcon = () => (
+  <svg {...base}>
+    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+  </svg>
+)
+export const DownloadIcon = () => (
+  <svg {...base}>
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </svg>
+)
+export const RefreshIcon = () => (
+  <svg {...base}>
+    <path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" />
+  </svg>
+)
+export const SearchIcon = () => (
+  <svg {...base}>
+    <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" />
   </svg>
 )
